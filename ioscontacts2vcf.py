@@ -27,8 +27,10 @@ N:%s,%s
 END:VCARD""" % (self.firstname, self.lastname)
 
 if __name__ == '__main__':
-    arg_parser = argparse.ArgumentParser()
+    arg_parser = argparse.ArgumentParser(description="Extract contacts from an iOS device sqlite \
+                                                      database and export them as vCards")
     arg_parser.add_argument("infile", help="Path to Contacts database from iDevice")
+    arg_parser.add_argument("outfile", help="Path where the outfile is supposed to be written")
     
     args = arg_parser.parse_args()
     if args.infile is None:
@@ -72,8 +74,9 @@ if __name__ == '__main__':
             else:
                 person = already_in_list[0]
                 
-        for p in persons:
-            print p.vcard
+        with open(args.outfile, "w") as outfile:
+            for p in persons:
+                outfile.write(p.vcard.encode('utf-8'))
 
     except sqlite3.Error:
         print("[!] An unspecified Error occurred")
