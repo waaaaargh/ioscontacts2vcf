@@ -4,9 +4,39 @@ import sys
 import argparse
 import sqlite3
 
+class Property:
+    def __init__(self, fstring, values):
+        self.fstring, self.values = fstring, values
+
+    @property
+    def vcard_line(self):
+        return self.fstring % self.values
+        
+
+class TelProperty(Property):
+    """
+    WARNING: This method is heavily german-centric and/or erratic.
+    """
+    def __init__(self, telnr):
+        # check if countrycode
+        self.telnr = telnr
+        if self.telnr.startswith("0"):
+            self.telnr = telnr.replace("0", "+49", 1)
+    
+        # check if cell number or landline number
+        if self.telnr.startswith("+4915") or self.telnr.startswith("+4916") or self.telnr.startswith("+4917"):
+            types = "text,voice,cell"
+        else:
+            types = "voice"
+            
+        values = (types, self.telnr)
+
+        Property.__init__(self, "TEL;VALUE=uri;PREF=1;TYPE=\"%s\":tel:%s", values)
+
 class Person:
     def __init__(self, id, firstname, lastname):
         self.id = id
+        self.properties = []
         if firstname is None:
             if " " in lastname:
                 self.firstname, self.lastname = lastname.split(None, 1)
@@ -26,7 +56,8 @@ class Person:
 BEGIN:VCARD
 VERSION:3.0
 N:%s,%s
-END:VCARD""" % (self.firstname, self.lastname)
+%s
+END:VCARD""" % (self.firstname, self.lastname, "\n".join([prop.vcard_line for prop in self.properties]))
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description="Extract contacts from an iOS device sqlite \
@@ -70,12 +101,18 @@ if __name__ == '__main__':
         for row in result:
             already_in_list = [x for x in persons if x.id == row[0]]
             if len(already_in_list) == 0:
-                persons.append(
-                    Person(row[0], row[1], row[2])
-                )
+                person = Person(row[0], row[1], row[2])
             else:
                 person = already_in_list[0]
+
+            if row[4] is not None:
+                person.properties.append(
+                    TelProperty(row[4])
+                )
                 
+            if len(already_in_list) == 0:
+                persons.append(person)
+
         with open(args.outfile, "w") as outfile:
             for p in persons:
                 outfile.write(p.vcard.encode('utf-8'))
