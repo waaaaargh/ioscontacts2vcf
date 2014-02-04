@@ -23,15 +23,9 @@ class TelProperty(Property):
         if self.telnr.startswith("0"):
             self.telnr = telnr.replace("0", "+49", 1)
     
-        # check if cell number or landline number
-        if self.telnr.startswith("+4915") or self.telnr.startswith("+4916") or self.telnr.startswith("+4917"):
-            types = "text,voice,cell"
-        else:
-            types = "voice"
-            
-        values = (types, self.telnr)
+        values = (self.telnr)
 
-        Property.__init__(self, "TEL;VALUE=uri;PREF=1;TYPE=\"%s\":tel:%s", values)
+        Property.__init__(self, "TEL;PREF:%s", values)
 
 class Person:
     def __init__(self, id, firstname, lastname):
@@ -52,12 +46,19 @@ class Person:
  
     @property
     def vcard(self):
+        if self.lastname == "":
+            name = self.firstname
+        else:
+            name = self.firstname+";"+self.lastname
         return """
 BEGIN:VCARD
-VERSION:3.0
-N:%s,%s
+VERSION:2.1
+N;CHARSET=UTF-8:%s;%s;;;
+FN;CHARSET=UTF-8:%s
 %s
-END:VCARD""" % (self.firstname, self.lastname, "\n".join([prop.vcard_line for prop in self.properties]))
+END:VCARD
+""" % (self.lastname, self.firstname, "%s %s" % (self.firstname, self.lastname), 
+        "\n".join([ prop.vcard_line for prop in self.properties ]))
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description="Extract contacts from an iOS device sqlite \
